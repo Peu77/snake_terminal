@@ -1,11 +1,13 @@
+#include "../include/snake.h"
+#include "../include/board.h"
+#include "../include/game.h"
 #include <stdio.h>
-#include <unistd.h>
 #include <termios.h>
-#include <stdlib.h>
-#include <time.h>
-#include <pthread.h>
+#include <unistd.h>
 
-char getch() {
+Snake snake;
+
+char getInput() {
     char buf = 0;
     struct termios old = {0}, new;
     if (tcgetattr(0, &old) < 0)
@@ -24,74 +26,8 @@ char getch() {
     return buf;
 }
 
-#define BORD_SIZE 100
-#define BOARD_ROWS BORD_SIZE
-// cols have to be half of the rows to make the board look like a square, because the terminal add space between the lines
-// This is also the reason why, we divide the delta-y by 2 so the snake moves in the same speed in both directions
-#define BOARD_COLS (BORD_SIZE / 2)
-
-#define FPS 60
-#define FRAME_TARGET_TIME (1000000 / FPS)
-
-bool game_over = false;
-char board[BOARD_ROWS * BOARD_COLS];
-
-void set_board(int x, int y, char c) {
-    if (x < BOARD_ROWS && y < BOARD_COLS)
-        board[y * BOARD_ROWS + x] = c;
-}
-
-void fill_board() {
-    for (int x = 0; x < BOARD_ROWS; x++) {
-        for (int y = 0; y < BOARD_COLS;
-             y++) {
-            if (x == 0 || x == BOARD_ROWS - 1 || y == 0 || y == BOARD_COLS - 1) {
-                set_board(x, y, '#');
-            } else {
-                set_board(x, y, ' ');
-            }
-        }
-    }
-}
-
-
-void draw_board() {
-    system("clear");
-    for (int y = 0; y < BOARD_COLS;
-         y++) {
-        for (int x = 0; x < BOARD_ROWS; x++) {
-            printf("%c", board[y * BOARD_ROWS + x]);
-        }
-        printf("\n");
-    }
-}
-
-
-typedef enum {
-    UP,
-    DOWN,
-    LEFT,
-    RIGHT
-} Direction;
-
-typedef struct {
-    int x;
-    double y;
-} SnakeSegment;
-
-#define SNAKE_MAX_LENGTH 100
-struct {
-    SnakeSegment segments[SNAKE_MAX_LENGTH];
-    int length;
-    int delta_x;
-    double delta_y;
-
-    Direction direction;
-} snake;
-
-
 void player_input() {
-    char input = getch();
+    char input = getInput();
 
     switch (input) {
         case 'w':
@@ -183,32 +119,4 @@ void draw_snake() {
 
         set_board(*x, *y, i == 0 ? '@' : 'o');
     }
-}
-
-int main() {
-    init_snake();
-
-    int tick = 0;
-    while (!game_over) {
-        clock_t startTime = clock();
-        tick++;
-        fill_board();
-
-        if (tick == 2) {
-            player_input();
-            update_snake();
-            tick = 0;
-        }
-        draw_snake();
-        draw_board();
-
-        clock_t endTime = clock();
-        int frameTime =
-                (endTime - startTime) * 1000000 / CLOCKS_PER_SEC;  // Time taken for current frame in microseconds
-
-        if (frameTime < FRAME_TARGET_TIME) {
-            usleep(FRAME_TARGET_TIME - frameTime);  // Pause for the remaining time to achieve the desired frame rate
-        }
-    }
-    return 0;
 }
